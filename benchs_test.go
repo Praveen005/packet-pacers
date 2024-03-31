@@ -195,7 +195,6 @@ func setup() {
 	if err != nil {
 		panic(err) // Use panic for initialization errors
 	}
-	//defer conn.Close() // Ensure the connection is closed after all benchmarks
 }
 
 func teardown() {
@@ -207,39 +206,13 @@ func BenchmarkSample(b *testing.B) {
 	b.StopTimer()
 	setup()
 	defer teardown()
-/*
-	testPort := 40101
-	// Create a udp network connection
-	conn, err := net.ListenUDP("udp", &net.UDPAddr{
-		IP:   net.IPv4(127, 0, 0, 1),
-		Port: testPort,
-	})
-	if err != nil {
-		b.Fatal(err)
-	}
-	// Do something here
-*/
+
 	ports, readChan, closeChan, err := testInit(readersCount, false) // DO NOT EDIT THIS LINE
 	if err != nil {
 		b.Fatal(err)
 	}
 	_ = readChan
-	/*
-		writer := func() {
-			// You can modify the following code inside this function
-			// Start of code that you are permitted to modify
-			for i := 0; i < readersCount; i++ {
-				buf := getTestMsg() // DO NOT EDIT THIS LINE
-
-				// DO Something with the buf to write it to the port 'i'
-				_ = ports[i] // Placeholder, Please remove this line
-				_ = buf      // Placeholder, Please remove this line
-			}
-
-			// End of code that you are permitted to modify
-			waitForReaders(readChan, b) // DO NOT EDIT THIS LINE
-		}
-	*/
+	
 	writer := func() {
 		for i := 0; i < readersCount; i++ {
 			buf := getTestMsg()
