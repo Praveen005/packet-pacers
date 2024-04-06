@@ -21,13 +21,21 @@ go test -benchmem -bench BenchmarkConnections
  Every time the `BenchmarkRawUDP` function runs, a new connection `conn` is made. It adverselsy affects the performance of the program. In the `BenchmarkSample` now the global variable `conn` that we created is re-used, resulting it significant performance boost as seen in the stats below.
 
  ```
- goos: linux
+goos: linux
 goarch: amd64
 pkg: dyte.io/net-assignment
 cpu: AMD Ryzen 5 5500U with Radeon Graphics         
-BenchmarkConnections/baseline-12                     170           6606608 ns/op          185810 B/op        700 allocs/op
-BenchmarkConnections/Sample-12                      1430            841476 ns/op          160012 B/op        300 allocs/op
+BenchmarkConnections/baseline-12                     199           5404626 ns/op          185777 B/op        700 allocs/op
+BenchmarkConnections/Sample-12                      1969            614839 ns/op          160009 B/op        300 allocs/op
 PASS
-ok      dyte.io/net-assignment  5.915s
+ok      dyte.io/net-assignment  5.033s
+```
+
+```
+> time ./main
+
+real    0m0.075s
+user    0m0.001s
+sys     0m0.016s
 ```
 > **Conclusion 1**: The `Sample` benchmark outperforms the `baseline` benchmark in all key metrics, indicating that it is more efficient in terms of throughput, execution speed, memory usage, and memory allocation. This suggests that the optimizations made in the `Sample` benchmark have led to significant performance improvements.

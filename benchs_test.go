@@ -13,6 +13,8 @@ import (
 
 var portIdx atomic.Int64
 var readersCount = 100
+var conn *net.UDPConn
+
 
 const (
 	defaultReadBufferSize  = 8 * 1024 * 1024
@@ -182,8 +184,7 @@ func BenchmarkRawUDP(b *testing.B) {
 // Implement your benchmarks here -->
 // Please read the comments carefully. You need to implement something atleast much faster than the baseline
 
-var conn *net.UDPConn
-
+// Optimization 1 here
 func setup() {
 	var err error
 	testPort := 40102
@@ -202,6 +203,8 @@ func teardown() {
 		conn.Close()
 	}
 }
+// Optimization 1 ends
+
 func BenchmarkSample(b *testing.B) {
 	b.StopTimer()
 	setup()
