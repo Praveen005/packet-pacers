@@ -65,3 +65,8 @@ go test -benchmem -bench BenchmarkConnections
     PASS
     ok      dyte.io/net-assignment  4.677s
     ```
+
+
+3. Concurrency:
+
+    Simply making each write run in a separate goroutine didn't yeild me any better result either :p
