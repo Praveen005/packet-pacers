@@ -215,18 +215,44 @@ func BenchmarkSample(b *testing.B) {
 		b.Fatal(err)
 	}
 	_ = readChan
+
+	type ByteSlice struct {
+		Data []byte
+	}
+
+	bufPool := sync.Pool{
+		New: func() interface{} {
+			return &ByteSlice{
+				Data: make([]byte, 1500), // Adjust the size based on your needs
+			}
+		},
+	}
 	
 	writer := func() {
 		for i := 0; i < readersCount; i++ {
-			buf := getTestMsg()
+			
+			byteSlice := bufPool.Get().(*ByteSlice)
+			buf := byteSlice.Data
+
+			msg := getTestMsg()
+
+			copy(buf, msg)
+
 			_, err := conn.WriteTo(buf, &net.UDPAddr{
 				IP:   net.IPv4(127, 0, 0, 1),
 				Port: ports[i],
 			})
+
 			if err != nil {
 				b.Fatal(err)
 			}
+
+			// Return the buffer to the pool for reuse
+			bufPool.Put(byteSlice)
+		
 		}
+		waitForReaders(readChan, b)
+
 	}
 	// Sequential test
 	b.StartTimer()
