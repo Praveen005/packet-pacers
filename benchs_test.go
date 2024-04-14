@@ -11,10 +11,10 @@ import (
 	"time"
 )
 
+
+
 var portIdx atomic.Int64
 var readersCount = 100
-var conn *net.UDPConn
-
 
 const (
 	defaultReadBufferSize  = 8 * 1024 * 1024
@@ -75,6 +75,7 @@ func testInit(readersCount int, verbose bool) (ports []int, readChan chan []byte
 			for {
 				select {
 				case <-closeChan:
+					fmt.Println("Inside the close channel!")
 					return
 				default:
 					n, _, err := syscall.Recvfrom(fd, buf, 0)
@@ -137,6 +138,17 @@ func BenchmarkConnections(b *testing.B) {
 }
 
 func BenchmarkRawUDP(b *testing.B) {
+	/*
+		f, err := os.Create("cpu.prof")
+		if err != nil {
+			b.Fatal("could not create CPU profile: ", err)
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			b.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+	*/
 	b.StopTimer()
 
 	testPort := 40101
@@ -181,34 +193,10 @@ func BenchmarkRawUDP(b *testing.B) {
 	close(closeChan)
 }
 
-// Implement your benchmarks here -->
-// Please read the comments carefully. You need to implement something atleast much faster than the baseline
-
-// Optimization 1 here
-func setup() {
-	var err error
-	testPort := 40102
-	// Create a udp network connection
-	conn, err = net.ListenUDP("udp", &net.UDPAddr{
-		IP:   net.IPv4(127, 0, 0, 1),
-		Port: testPort,
-	})
-	if err != nil {
-		panic(err) // Use panic for initialization errors
-	}
-}
-
-func teardown() {
-	if conn != nil {
-		conn.Close()
-	}
-}
-// Optimization 1 ends
+// using sendTo function and goroutines
 
 func BenchmarkSample(b *testing.B) {
 	b.StopTimer()
-	setup()
-	defer teardown()
 
 	ports, readChan, closeChan, err := testInit(readersCount, false) // DO NOT EDIT THIS LINE
 	if err != nil {
@@ -216,44 +204,36 @@ func BenchmarkSample(b *testing.B) {
 	}
 	_ = readChan
 
-	type ByteSlice struct {
-		Data []byte
-	}
-
-	bufPool := sync.Pool{
-		New: func() interface{} {
-			return &ByteSlice{
-				Data: make([]byte, 1500), // Adjust the size based on your needs
-			}
-		},
-	}
-	
 	writer := func() {
-		for i := 0; i < readersCount; i++ {
-			
-			byteSlice := bufPool.Get().(*ByteSlice)
-			buf := byteSlice.Data
-
-			msg := getTestMsg()
-
-			copy(buf, msg)
-
-			_, err := conn.WriteTo(buf, &net.UDPAddr{
-				IP:   net.IPv4(127, 0, 0, 1),
-				Port: ports[i],
-			})
-
-			if err != nil {
-				b.Fatal(err)
-			}
-
-			// Return the buffer to the pool for reuse
-			bufPool.Put(byteSlice)
-		
+		// Prepare the messages
+		fd, _, err := newUDPSocket()
+		if err != nil {
+			panic(err)
 		}
-		waitForReaders(readChan, b)
+		var wg sync.WaitGroup
+		for i := 0; i < readersCount; i++ {
+			// fd, _, err := newUDPSocket()
+			// if err != nil {
+			// 	panic(err)
+			// }
+			wg.Add(1)
+			go func (i int)  {
+				defer wg.Done()
+				buf := getTestMsg()
+				addr := &net.UDPAddr{Port: ports[i], IP: net.IPv4(127, 0, 0, 1)}
+				raddr := &syscall.SockaddrInet4{Port: addr.Port, Addr: [4]byte{addr.IP[12], addr.IP[13], addr.IP[14], addr.IP[15]}}
+				err = syscall.Sendto(fd, buf, syscall.MSG_DONTWAIT, raddr)
+				if err != nil{
+					panic(err)
+				}
+			}(i)
 
+		}
+		wg.Wait()
+
+		waitForReaders(readChan, b)
 	}
+
 	// Sequential test
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
@@ -263,3 +243,4 @@ func BenchmarkSample(b *testing.B) {
 
 	close(closeChan)
 }
+
