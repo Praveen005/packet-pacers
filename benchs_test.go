@@ -209,6 +209,7 @@ func BenchmarkSample(b *testing.B) {
 	}
 
 	preAllocBuffers := make([][]byte, readersCount)
+
 	for i := range preAllocBuffers {
 		preAllocBuffers[i] = getTestMsg()
 	}
@@ -219,7 +220,6 @@ func BenchmarkSample(b *testing.B) {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
-				// buf := getTestMsg()
 				err = syscall.Sendto(fd, preAllocBuffers[i], syscall.MSG_DONTWAIT, &remoteAddr[i])
 				if err != nil {
 					panic(err)
