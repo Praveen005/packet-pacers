@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-
-
 var portIdx atomic.Int64
 var readersCount = 100
 
@@ -75,7 +73,6 @@ func testInit(readersCount int, verbose bool) (ports []int, readChan chan []byte
 			for {
 				select {
 				case <-closeChan:
-					fmt.Println("Inside the close channel!")
 					return
 				default:
 					n, _, err := syscall.Recvfrom(fd, buf, 0)
@@ -138,17 +135,6 @@ func BenchmarkConnections(b *testing.B) {
 }
 
 func BenchmarkRawUDP(b *testing.B) {
-	/*
-		f, err := os.Create("cpu.prof")
-		if err != nil {
-			b.Fatal("could not create CPU profile: ", err)
-		}
-		defer f.Close()
-		if err := pprof.StartCPUProfile(f); err != nil {
-			b.Fatal("could not start CPU profile: ", err)
-		}
-		defer pprof.StopCPUProfile()
-	*/
 	b.StopTimer()
 
 	testPort := 40101
@@ -193,8 +179,7 @@ func BenchmarkRawUDP(b *testing.B) {
 	close(closeChan)
 }
 
-// using sendTo function and goroutines
-
+// using sendTo function and pre-allocated Buffers
 func BenchmarkSample(b *testing.B) {
 	b.StopTimer()
 
@@ -204,33 +189,38 @@ func BenchmarkSample(b *testing.B) {
 	}
 	_ = readChan
 
+	fd, _, err := newUDPSocket()
+	if err != nil {
+		panic(err)
+	}
+
+	defer func() {
+		syscall.Close(fd)
+	}()
+
+	remoteAddr := make([]syscall.SockaddrInet4, readersCount)
+	var addr *net.UDPAddr
+	var raddr *syscall.SockaddrInet4
+
+	for i := 0; i < readersCount; i++ {
+		addr = &net.UDPAddr{Port: ports[i], IP: net.IPv4(127, 0, 0, 1)}
+		raddr = &syscall.SockaddrInet4{Port: addr.Port, Addr: [4]byte{addr.IP[12], addr.IP[13], addr.IP[14], addr.IP[15]}}
+		remoteAddr[i] = *raddr
+	}
+
 	writer := func() {
-		// Prepare the messages
-		fd, _, err := newUDPSocket()
-		if err != nil {
-			panic(err)
-		}
-		var wg sync.WaitGroup
 		for i := 0; i < readersCount; i++ {
-			// fd, _, err := newUDPSocket()
-			// if err != nil {
-			// 	panic(err)
-			// }
-			wg.Add(1)
-			go func (i int)  {
-				defer wg.Done()
+
+			func(i int) {
 				buf := getTestMsg()
-				addr := &net.UDPAddr{Port: ports[i], IP: net.IPv4(127, 0, 0, 1)}
-				raddr := &syscall.SockaddrInet4{Port: addr.Port, Addr: [4]byte{addr.IP[12], addr.IP[13], addr.IP[14], addr.IP[15]}}
-				err = syscall.Sendto(fd, buf, syscall.MSG_DONTWAIT, raddr)
-				if err != nil{
+				err = syscall.Sendto(fd, buf, syscall.MSG_DONTWAIT, &remoteAddr[i])
+				if err != nil {
 					panic(err)
 				}
+
 			}(i)
 
 		}
-		wg.Wait()
-
 		waitForReaders(readChan, b)
 	}
 
@@ -243,4 +233,3 @@ func BenchmarkSample(b *testing.B) {
 
 	close(closeChan)
 }
-
