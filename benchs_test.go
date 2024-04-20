@@ -207,6 +207,7 @@ func BenchmarkSample(b *testing.B) {
 		raddr = &syscall.SockaddrInet4{Port: addr.Port, Addr: [4]byte{addr.IP[12], addr.IP[13], addr.IP[14], addr.IP[15]}}
 		remoteAddr[i] = *raddr
 	}
+	
 	var wg sync.WaitGroup
 	writer := func() {
 		for i := 0; i < readersCount; i++ {
