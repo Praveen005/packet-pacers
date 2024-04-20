@@ -231,7 +231,6 @@ func BenchmarkSample(b *testing.B) {
 		}
 		waitForReaders(readChan, b)
 	}
-	// hello 
 
 	// Sequential test
 	b.StartTimer()
