@@ -207,6 +207,11 @@ func BenchmarkSample(b *testing.B) {
 		raddr = &syscall.SockaddrInet4{Port: addr.Port, Addr: [4]byte{addr.IP[12], addr.IP[13], addr.IP[14], addr.IP[15]}}
 		remoteAddr[i] = *raddr
 	}
+
+	preAllocBuffers := make([][]byte, readersCount)
+	for i := range preAllocBuffers {
+		preAllocBuffers[i] = getTestMsg()
+	}
 	
 	var wg sync.WaitGroup
 	writer := func() {
@@ -214,8 +219,8 @@ func BenchmarkSample(b *testing.B) {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
-				buf := getTestMsg()
-				err = syscall.Sendto(fd, buf, syscall.MSG_DONTWAIT, &remoteAddr[i])
+				// buf := getTestMsg()
+				err = syscall.Sendto(fd, preAllocBuffers[i], syscall.MSG_DONTWAIT, &remoteAddr[i])
 				if err != nil {
 					panic(err)
 				}
