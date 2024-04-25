@@ -1,29 +1,47 @@
 package main
 
-import (
-	"flag"
-	"log"
-	"os"
-	"runtime/pprof"
-)
+import "sync"
+
+type Job func()
+
+type Pool struct{
+	workerQueue			chan Job
+	wg					sync.WaitGroup
+}
+
+//create a new pool
+
+func NewPool(workerCount int) *Pool{
+	pool := &Pool{
+		workerQueue: make(chan Job),
+	}
+
+	pool.wg.Add(workerCount)
+
+	for i := 0; i<workerCount; i++{
+		go func ()  {
+			defer pool.wg.Done()
+			for job := range pool.workerQueue{
+				job()
+			}
+		}()
+	}
+	return pool
+}
+
+func(p *Pool)Wait(){
+	close(p.workerQueue)
+	p.wg.Wait()
+}
+
+func(p *Pool)AddJob(job Job){
+	p.workerQueue <- job
+}
 
 
-var cpuprofile = flag.String("cpu-profile", "", "write cpu profile to `file`")
 
 func main() {
-	flag.Parse()
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
-		if err != nil {
-			log.Fatal("could not create CPU profile: ", err)
-		}
-		defer f.Close()
-		// runtime.SetCPUProfileRate(500)   // default is 100, gives more refined result but at the cost of latency
-		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Fatal("could not start CPU profile: ", err)
-		}
-		defer pprof.StopCPUProfile()
-	}
+	
 	// Nothing here.
 	// Run the following command in CLI:
 	// go test -benchmem -bench BenchmarkConnections
