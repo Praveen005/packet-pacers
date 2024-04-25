@@ -190,6 +190,7 @@ func BenchmarkSample(b *testing.B) {
 	_ = readChan
 
 	fd, _, err := newUDPSocket()
+	
 	if err != nil {
 		panic(err)
 	}
