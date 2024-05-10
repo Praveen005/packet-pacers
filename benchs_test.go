@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -137,6 +139,21 @@ func BenchmarkConnections(b *testing.B) {
 func BenchmarkRawUDP(b *testing.B) {
 	b.StopTimer()
 
+	// Create a file for storing the CPU profile
+    f, err := os.Create("cpu2.out")
+    if err != nil {
+        fmt.Println("Could not create profile file:", err)
+        return
+    }
+    defer f.Close()
+
+    // Start CPU profiling
+    if err := pprof.StartCPUProfile(f); err != nil {
+        fmt.Println("Could not start profiling:", err)
+        return
+    }
+    defer pprof.StopCPUProfile() // Stop profiling at the end
+
 	testPort := 40101
 	// Create a udp network connection
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{
@@ -182,6 +199,21 @@ func BenchmarkRawUDP(b *testing.B) {
 // using sendTo function and pre-allocated Buffers
 func BenchmarkSample(b *testing.B) {
 	b.StopTimer()
+
+	// Create a file for storing the CPU profile
+    f, err := os.Create("cpu1.out")
+    if err != nil {
+        fmt.Println("Could not create profile file:", err)
+        return
+    }
+    defer f.Close()
+
+    // Start CPU profiling
+    if err := pprof.StartCPUProfile(f); err != nil {
+        fmt.Println("Could not start profiling:", err)
+        return
+    }
+    defer pprof.StopCPUProfile() // Stop profiling at the end
 
 	ports, readChan, closeChan, err := testInit(readersCount, false) // DO NOT EDIT THIS LINE
 	if err != nil {
